@@ -1,14 +1,9 @@
+import React from "react";
 import { WizardFormData } from "@/types/brite";
-import {
-  classifyQuadrant,
-  calculateEcosystemScore,
-  calculateSyncScore,
-  QUADRANT_META,
-} from "@/lib/briteClassifier";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { classifyQuadrant, calculateEcosystemScore, calculateSyncScore, QUADRANT_META } from "@/lib/briteClassifier";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { QuadrantBadge } from "../shared/QuadrantBadge";
+import { cn } from "@/lib/utils";
 
 interface Props {
   formData: Partial<WizardFormData>;
@@ -17,7 +12,23 @@ interface Props {
   renderSubmit?: () => React.ReactNode;
 }
 
-import React from "react";
+function ReviewRow({ label, value, highlight }: { label: string; value: string | number; highlight?: boolean }) {
+  return (
+    <div className="flex justify-between items-center py-1.5">
+      <span className="text-sm text-muted-foreground">{label}</span>
+      <span className={cn("text-sm font-medium", highlight && "text-primary")}>{value}</span>
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">{title}</p>
+      <div className="rounded-xl border bg-muted/30 px-4 divide-y">{children}</div>
+    </div>
+  );
+}
 
 export function Step4Review({ formData, onSubmit, onBack, renderSubmit }: Props) {
   const data = formData as WizardFormData;
@@ -26,90 +37,62 @@ export function Step4Review({ formData, onSubmit, onBack, renderSubmit }: Props)
   const syncScore = calculateSyncScore(data);
   const meta = QUADRANT_META[quadrant];
 
-  const Row = ({ label, value }: { label: string; value: string | number }) => (
-    <div className="flex justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium">{value}</span>
-    </div>
-  );
-
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Review & Submit</CardTitle>
-        <CardDescription>Confirm your inputs and get your AI diagnosis.</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
-            Company
-          </p>
-          <Row label="Industry" value={data.industry} />
-          <Row label="Business Model" value={data.businessModel} />
-          <Row label="Company Size" value={data.companySize} />
+    <div className="space-y-6">
+      <div className="rounded-2xl border bg-card p-6 space-y-5 shadow-sm">
+        <div>
+          <h2 className="text-lg font-semibold">Review & Submit</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Confirm your inputs before generating the AI diagnosis.</p>
         </div>
 
-        <Separator />
+        <Section title="Company">
+          <ReviewRow label="Name" value={data.companyName} />
+          <ReviewRow label="Industry" value={data.industry} />
+          <ReviewRow label="Business Model" value={data.businessModel} />
+          <ReviewRow label="Size" value={data.companySize} />
+        </Section>
 
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
-            Ecosystem (Eixo X)
-          </p>
-          <Row label="Channels" value={data.numberOfChannels} />
-          <Row label="Integrations" value={data.numberOfIntegrations} />
-          <Row label="Omnichannel" value={data.hasOmnichannelPresence ? "Yes" : "No"} />
-          <Row label="External Partners" value={data.hasExternalPartners ? "Yes" : "No"} />
-        </div>
+        <Section title="Ecosystem (Eixo X)">
+          <ReviewRow label="Channels" value={data.numberOfChannels} />
+          <ReviewRow label="Integrations" value={data.numberOfIntegrations} />
+          <ReviewRow label="Omnichannel" value={data.hasOmnichannelPresence ? "Yes" : "No"} />
+          <ReviewRow label="External Partners" value={data.hasExternalPartners ? "Yes" : "No"} />
+        </Section>
 
-        <Separator />
+        <Section title="Synchronization (Eixo Y)">
+          <ReviewRow label="Tolerates Latency" value={data.toleratesLatency ? "Yes" : "No"} />
+          <ReviewRow label="Real-Time Inventory" value={data.needsRealTimeInventory ? "Yes" : "No"} />
+          <ReviewRow label="Real-Time Personalization" value={data.needsRealTimePersonalization ? "Yes" : "No"} />
+          <ReviewRow label="Mission-Critical" value={data.hasMissionCriticalTransactions ? "Yes" : "No"} />
+        </Section>
 
-        <div className="space-y-2">
-          <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
-            Synchronization (Eixo Y)
-          </p>
-          <Row label="Tolerates Latency" value={data.toleratesLatency ? "Yes" : "No"} />
-          <Row label="Real-Time Inventory" value={data.needsRealTimeInventory ? "Yes" : "No"} />
-          <Row
-            label="Real-Time Personalization"
-            value={data.needsRealTimePersonalization ? "Yes" : "No"}
-          />
-          <Row
-            label="Mission-Critical"
-            value={data.hasMissionCriticalTransactions ? "Yes" : "No"}
-          />
-        </div>
-
-        <Separator />
-
-        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-semibold">Pre-classification Result</p>
-          <div className="flex items-center gap-3">
-            <QuadrantBadge quadrant={quadrant} size="lg" />
+        {/* Pre-classification preview */}
+        <div
+          className="rounded-xl p-4 flex items-center justify-between"
+          style={{ backgroundColor: `${meta.chartColor}15`, borderLeft: `4px solid ${meta.chartColor}` }}
+        >
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Pre-classification</p>
+            <QuadrantBadge quadrant={quadrant} size="md" />
+            <p className="text-xs text-muted-foreground mt-1">{meta.description}</p>
           </div>
-          <p className="text-sm text-muted-foreground">{meta.description}</p>
-          <div className="flex gap-4 text-sm">
-            <span>
-              Ecosystem score: <strong>{ecoScore.toFixed(1)}/10</strong>
-            </span>
-            <span>
-              Sync score: <strong>{syncScore.toFixed(1)}/10</strong>
-            </span>
+          <div className="text-right space-y-1">
+            <p className="text-xs text-muted-foreground">Eco <span className="font-bold text-foreground">{ecoScore.toFixed(1)}</span></p>
+            <p className="text-xs text-muted-foreground">Sync <span className="font-bold text-foreground">{syncScore.toFixed(1)}</span></p>
           </div>
         </div>
+      </div>
 
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={onBack} className="flex-1">
-            ← Back
+      <div className="flex gap-3">
+        <Button variant="outline" size="lg" onClick={onBack} className="flex-1">← Back</Button>
+        {renderSubmit ? (
+          <div className="flex-1">{renderSubmit()}</div>
+        ) : (
+          <Button size="lg" onClick={onSubmit} className="flex-1 bg-green-600 hover:bg-green-500">
+            Get AI Diagnosis →
           </Button>
-          {renderSubmit ? (
-            <div className="flex-1">{renderSubmit()}</div>
-          ) : (
-            <Button onClick={onSubmit} className="flex-1 bg-green-600 hover:bg-green-700">
-              Get AI Diagnosis →
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        )}
+      </div>
+    </div>
   );
 }

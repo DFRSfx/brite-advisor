@@ -2,9 +2,8 @@ import React from "react";
 import { useState } from "react";
 import { WizardFormData } from "@/types/brite";
 import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { Globe, Network, Check } from "lucide-react";
+import { Globe, Network, Check, Minus, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface Props {
@@ -57,48 +56,53 @@ function MotionToggleCard({
   );
 }
 
-function SliderField({
+function StepperField({
   label,
+  description,
   value,
   min,
   max,
   onChange,
-  lowLabel,
-  highLabel,
 }: {
   label: string;
+  description: string;
   value: number;
   min: number;
   max: number;
   onChange: (v: number) => void;
-  lowLabel: string;
-  highLabel: string;
 }) {
   return (
-    <div className="rounded-xl bg-muted/40 border border-border/60 p-4 space-y-3 group">
-      <div className="flex justify-between items-center">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500">{label}</p>
+    <div className="rounded-xl bg-muted/40 border border-border/60 p-4 flex items-center justify-between gap-4">
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="text-xs text-muted-foreground/70 mt-0.5">{description}</p>
+      </div>
+      <div className="flex items-center gap-3 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(min, value - 1))}
+          disabled={value <= min}
+          className="w-8 h-8 rounded-full border-2 border-border flex items-center justify-center text-muted-foreground hover:border-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <Minus className="w-3.5 h-3.5" />
+        </button>
         <motion.span
           key={value}
-          initial={{ scale: 1.2, opacity: 0.5 }}
+          initial={{ scale: 1.3, opacity: 0.5 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 20 }}
-          className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-sm font-bold tabular-nums"
+          className="w-10 text-center text-lg font-bold text-indigo-600 tabular-nums"
         >
           {value}
         </motion.span>
-      </div>
-      <Slider
-        min={min}
-        max={max}
-        step={1}
-        value={[value]}
-        onValueChange={(v) => { const arr = Array.isArray(v) ? v : [v]; onChange(arr[0] as number); }}
-        className="w-full"
-      />
-      <div className="flex justify-between text-xs text-muted-foreground">
-        <span>{lowLabel}</span>
-        <span>{highLabel}</span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(max, value + 1))}
+          disabled={value >= max}
+          className="w-8 h-8 rounded-full border-2 border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 flex items-center justify-center text-indigo-600 hover:bg-indigo-100 hover:border-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );
@@ -118,24 +122,22 @@ export function Step2Complexity({ defaultValues, onNext, onBack }: Props) {
           <p className="text-sm text-muted-foreground mt-0.5">Eixo X — How distributed is your digital ecosystem?</p>
         </div>
 
-        <div className="space-y-6">
-          <SliderField
+        <div className="space-y-3">
+          <StepperField
             label="Sales / Service Channels"
+            description="How many distinct channels do you sell or serve through?"
             value={numberOfChannels}
             min={1}
             max={10}
             onChange={setNumberOfChannels}
-            lowLabel="1 channel"
-            highLabel="10+ channels"
           />
-          <SliderField
+          <StepperField
             label="External Integrations / Partners"
+            description="APIs, marketplaces, or systems you connect to externally"
             value={numberOfIntegrations}
             min={0}
             max={20}
             onChange={setNumberOfIntegrations}
-            lowLabel="None"
-            highLabel="20+"
           />
         </div>
 

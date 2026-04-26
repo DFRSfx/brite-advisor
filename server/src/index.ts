@@ -1,5 +1,7 @@
 import "dotenv/config";
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
@@ -52,6 +54,37 @@ const diagnosisSchema = z.object({
   }),
 });
 
+// Retry with exponential backoff — handles 429 / transient 5xx
+// 429 = rate limit (per-minute window) → honour Retry-After or use long base delay
+// 5xx = transient server error → short backoff
+async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await fn();
+    } catch (err: any) {
+      const status = err?.response?.status;
+      const retryable = status === 429 || (status >= 500 && status < 600);
+      attempt++;
+      if (!retryable || attempt >= maxAttempts) throw err;
+
+      let delay: number;
+      if (status === 429) {
+        // Honour Retry-After header if present, else 15s base with backoff
+        const retryAfter = err?.response?.headers?.["retry-after"];
+        delay = retryAfter
+          ? parseInt(retryAfter, 10) * 1000
+          : 15_000 * attempt + Math.random() * 2000;
+      } else {
+        delay = 1_000 * 2 ** (attempt - 1) + Math.random() * 300;
+      }
+
+      console.warn(`Gemini ${status} — retry ${attempt}/${maxAttempts - 1} in ${Math.round(delay / 1000)}s`);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+}
+
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -73,15 +106,22 @@ app.post("/api/diagnose", diagnoseLimiter, async (req, res) => {
   let aiAnalysis = "";
   try {
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    const geminiRes = await axios.post(geminiUrl, {
-      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-      contents: [{ role: "user", parts: [{ text: buildUserPrompt(formData, quadrant) }] }],
-      generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
-    });
+    const geminiRes = await withRetry(() =>
+      axios.post(geminiUrl, {
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: "user", parts: [{ text: buildUserPrompt(formData, quadrant) }] }],
+        generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
+      })
+    );
     aiAnalysis = geminiRes.data.candidates[0].content.parts[0].text;
-  } catch (err) {
+  } catch (err: any) {
     console.error("Gemini API error:", err);
-    res.status(502).json({ error: "Failed to fetch AI diagnosis." });
+    const status = err?.response?.status;
+    if (status === 429) {
+      res.status(429).json({ error: "Gemini rate limit reached. Wait a moment and try again." });
+    } else {
+      res.status(502).json({ error: "Failed to fetch AI diagnosis." });
+    }
     return;
   }
 
@@ -130,6 +170,28 @@ app.get("/api/analytics", async (_req, res) => {
     res.status(500).json({ error: "Failed to load analytics." });
   }
 });
+
+const distCandidates = [
+  path.resolve(process.cwd(), "dist"),
+  path.resolve(process.cwd(), "..", "dist"),
+];
+const clientDist = distCandidates.find((candidate) =>
+  fs.existsSync(path.join(candidate, "index.html"))
+);
+
+if (clientDist) {
+  app.use(express.static(clientDist));
+
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(clientDist, "index.html"));
+  });
+} else {
+  console.warn(
+    "Frontend build not found. Expected index.html in:",
+    distCandidates.join(", ")
+  );
+}
 
 app.listen(PORT, () => {
   console.log(`BRITE server running on port ${PORT}`);

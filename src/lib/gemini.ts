@@ -7,11 +7,16 @@ export async function fetchBriteDiagnosis(
   data: WizardFormData
 ): Promise<Omit<BriteDiagnosis, "loading" | "error">> {
   const { companyName, ...formData } = data;
-  const response = await axios.post<Omit<BriteDiagnosis, "loading" | "error">>(
-    `${API_BASE}/api/diagnose`,
-    { companyName, formData }
-  );
-  return response.data;
+  try {
+    const response = await axios.post<Omit<BriteDiagnosis, "loading" | "error">>(
+      `${API_BASE}/api/diagnose`,
+      { companyName, formData }
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.error;
+    throw new Error(msg ?? "Failed to fetch AI diagnosis.");
+  }
 }
 
 export async function fetchAnalytics(): Promise<AnalyticsData> {

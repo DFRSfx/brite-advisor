@@ -96,7 +96,7 @@ export function ArchMatrix({ activeQuadrant, ecosystemScore, syncScore }: Props)
               ))}
             </Scatter>
             {/* Active company point */}
-            <Scatter data={activePoint} shape="star">
+            <Scatter data={activePoint} shape="star" size={200}>
               {activePoint.map((entry) => (
                 <Cell
                   key="active"

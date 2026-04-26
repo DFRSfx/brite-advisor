@@ -19,6 +19,20 @@ export async function fetchBriteDiagnosis(
   }
 }
 
+export async function regenerateDiagnosis(
+  id: string
+): Promise<Omit<BriteDiagnosis, "loading" | "error">> {
+  try {
+    const response = await axios.post<Omit<BriteDiagnosis, "loading" | "error">>(
+      `${API_BASE}/api/diagnose/${id}/regenerate`
+    );
+    return response.data;
+  } catch (err: any) {
+    const msg = err?.response?.data?.error;
+    throw new Error(msg ?? "Failed to regenerate AI diagnosis.");
+  }
+}
+
 export async function fetchAnalytics(): Promise<AnalyticsData> {
   const response = await axios.get<AnalyticsData>(`${API_BASE}/api/analytics`);
   return response.data;

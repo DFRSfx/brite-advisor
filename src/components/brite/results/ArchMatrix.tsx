@@ -8,7 +8,9 @@ import {
   ReferenceLine,
   ResponsiveContainer,
   Cell,
+  Symbols,
 } from "recharts";
+import type { ScatterShapeProps } from "recharts";
 import { Quadrant } from "@/types/brite";
 import { QUADRANT_META } from "@/lib/briteClassifier";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +48,28 @@ const CustomTooltip = ({ active, payload }: TooltipProps) => {
     <div className="bg-white border border-border rounded-lg px-3 py-2 text-sm shadow-lg">
       <p className="font-semibold">{d.quadrant} — {QUADRANT_META[d.quadrant!].label}</p>
     </div>
+  );
+};
+
+type ActiveStarProps = ScatterShapeProps & {
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+};
+
+const ActiveStar = ({ cx, cy, fill, stroke, strokeWidth }: ActiveStarProps) => {
+  if (cx == null || cy == null) return null;
+  return (
+    <Symbols
+      cx={cx}
+      cy={cy}
+      type="star"
+      size={22}
+      sizeType="diameter"
+      fill={fill}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+    />
   );
 };
 
@@ -96,7 +120,7 @@ export function ArchMatrix({ activeQuadrant, ecosystemScore, syncScore }: Props)
               ))}
             </Scatter>
             {/* Active company point */}
-            <Scatter data={activePoint} shape="star" size={200}>
+            <Scatter data={activePoint} shape={ActiveStar}>
               {activePoint.map((entry) => (
                 <Cell
                   key="active"

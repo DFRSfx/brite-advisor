@@ -12,12 +12,13 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { fetchAnalytics } from "@/lib/gemini";
+import { fetchAnalytics, getReportUrl } from "@/lib/gemini";
 import { AnalyticsData, Quadrant } from "@/types/brite";
 import { QUADRANT_META } from "@/lib/briteClassifier";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -180,16 +181,17 @@ export function AnalyticsPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-muted-foreground text-left">
-                    <th className="pb-2 font-medium">Company</th>
-                    <th className="pb-2 font-medium">Quadrant</th>
-                    <th className="pb-2 font-medium">Eco</th>
-                    <th className="pb-2 font-medium">Sync</th>
-                    <th className="pb-2 font-medium">Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.allAssessments.slice(0, 20).map((a) => (
+                    <tr className="border-b text-muted-foreground text-left">
+                      <th className="pb-2 font-medium">Company</th>
+                      <th className="pb-2 font-medium">Quadrant</th>
+                      <th className="pb-2 font-medium">Eco</th>
+                      <th className="pb-2 font-medium">Sync</th>
+                      <th className="pb-2 font-medium">Date</th>
+                      <th className="pb-2 font-medium">Report</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.allAssessments.slice(0, 20).map((a) => (
                     <tr key={a.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="py-2 font-medium">{a.company_name}</td>
                       <td className="py-2">
@@ -202,13 +204,20 @@ export function AnalyticsPage() {
                       </td>
                       <td className="py-2 text-muted-foreground">{a.ecosystem_score.toFixed(1)}</td>
                       <td className="py-2 text-muted-foreground">{a.sync_score.toFixed(1)}</td>
-                      <td className="py-2 text-muted-foreground">
-                        {new Date(a.created_at).toLocaleDateString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <td className="py-2 text-muted-foreground">
+                          {new Date(a.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="py-2">
+                          <a href={getReportUrl(a.id)} target="_blank" rel="noreferrer">
+                            <Button variant="outline" size="sm">
+                              PDF
+                            </Button>
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
             </div>
           </CardContent>
         </Card>

@@ -8,8 +8,9 @@ import axios from "axios";
 import { z } from "zod";
 import { calculateEcosystemScore, calculateSyncScore, classifyQuadrant } from "./classifier.js";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.js";
-import { saveAssessment, getAssessmentById, getAnalytics } from "./db.js";
+import { saveAssessment, getAssessmentById, getAnalytics, updateAssessmentAnalysis } from "./db.js";
 import { streamAssessmentPdf } from "./pdf.js";
+import type { Quadrant, WizardFormData } from "./types.js";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -85,6 +86,22 @@ async function withRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
   }
 }
 
+async function fetchAiAnalysis(formData: WizardFormData, quadrant: Quadrant): Promise<string> {
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
+  const geminiRes = await withRetry(() =>
+    axios.post(geminiUrl, {
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: buildUserPrompt(formData, quadrant) }] }],
+      generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
+    })
+  );
+  const aiText = geminiRes.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!aiText) {
+    throw new Error("Empty AI response.");
+  }
+  return aiText;
+}
+
 // Health check
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
@@ -105,15 +122,7 @@ app.post("/api/diagnose", diagnoseLimiter, async (req, res) => {
 
   let aiAnalysis = "";
   try {
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
-    const geminiRes = await withRetry(() =>
-      axios.post(geminiUrl, {
-        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-        contents: [{ role: "user", parts: [{ text: buildUserPrompt(formData, quadrant) }] }],
-        generationConfig: { temperature: 0.3, maxOutputTokens: 1500 },
-      })
-    );
-    aiAnalysis = geminiRes.data.candidates[0].content.parts[0].text;
+    aiAnalysis = await fetchAiAnalysis(formData, quadrant);
   } catch (err: any) {
     console.error("Gemini API error:", err);
     const status = err?.response?.status;
@@ -146,6 +155,51 @@ app.post("/api/diagnose", diagnoseLimiter, async (req, res) => {
     console.error("DB save error:", err);
     // Return result even if DB fails — don't block the user
     res.json({ id: null, quadrant, ecosystemScore, syncScore, aiAnalysis });
+  }
+});
+
+// Regenerate AI analysis for an existing assessment
+app.post("/api/diagnose/:id/regenerate", diagnoseLimiter, async (req, res) => {
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const assessment = await getAssessmentById(id);
+  if (!assessment) {
+    res.status(404).json({ error: "Assessment not found" });
+    return;
+  }
+
+  let aiAnalysis = "";
+  try {
+    aiAnalysis = await fetchAiAnalysis(assessment.form_data, assessment.quadrant);
+  } catch (err: any) {
+    console.error("Gemini API error:", err);
+    const status = err?.response?.status;
+    if (status === 429) {
+      res.status(429).json({ error: "Gemini rate limit reached. Wait a moment and try again." });
+    } else {
+      res.status(502).json({ error: "Failed to fetch AI diagnosis." });
+    }
+    return;
+  }
+
+  try {
+    const updated = await updateAssessmentAnalysis(id, aiAnalysis);
+    res.json({
+      id: updated.id,
+      quadrant: updated.quadrant,
+      ecosystemScore: updated.ecosystem_score,
+      syncScore: updated.sync_score,
+      aiAnalysis: updated.ai_analysis,
+    });
+  } catch (err) {
+    console.error("DB update error:", err);
+    res.json({
+      id: assessment.id,
+      quadrant: assessment.quadrant,
+      ecosystemScore: assessment.ecosystem_score,
+      syncScore: assessment.sync_score,
+      aiAnalysis,
+    });
   }
 });
 

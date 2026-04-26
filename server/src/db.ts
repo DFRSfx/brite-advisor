@@ -55,6 +55,16 @@ export async function getAssessmentById(id: string): Promise<Assessment | null> 
   return rows[0] ?? null;
 }
 
+export async function updateAssessmentAnalysis(id: string, aiAnalysis: string): Promise<Assessment> {
+  const [row] = await sql<Assessment[]>`
+    UPDATE assessments
+    SET ai_analysis = ${aiAnalysis}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return row;
+}
+
 export async function getAnalytics(): Promise<{
   quadrantCounts: Record<Quadrant, number>;
   allAssessments: Pick<

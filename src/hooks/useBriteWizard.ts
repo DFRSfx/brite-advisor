@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { WizardFormData, BriteDiagnosis } from "@/types/brite";
-import { fetchBriteDiagnosis } from "@/lib/gemini";
+import { fetchBriteDiagnosis, regenerateDiagnosis } from "@/lib/gemini";
 
 const TOTAL_STEPS = 4;
 
@@ -20,6 +20,9 @@ export function useBriteWizard() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<Partial<WizardFormData>>(DEFAULT_FORM);
   const [diagnosis, setDiagnosis] = useState<BriteDiagnosis | null>(null);
+  const [regenCooldown, setRegenCooldown] = useState(0);
+  const [regenInFlight, setRegenInFlight] = useState(false);
+  const [regenError, setRegenError] = useState<string | null>(null);
 
   const updateFormData = (data: Partial<WizardFormData>) => {
     setFormData((prev) => ({ ...prev, ...data }));
@@ -32,6 +35,9 @@ export function useBriteWizard() {
     setCurrentStep(1);
     setDiagnosis(null);
     setFormData(DEFAULT_FORM);
+    setRegenCooldown(0);
+    setRegenInFlight(false);
+    setRegenError(null);
   };
 
   const submitDiagnosis = async () => {
@@ -49,5 +55,48 @@ export function useBriteWizard() {
     }
   };
 
-  return { currentStep, formData, diagnosis, totalSteps: TOTAL_STEPS, updateFormData, next, back, reset, submitDiagnosis };
+  const startCooldown = (seconds: number) => {
+    setRegenCooldown(seconds);
+    const timer = setInterval(() => {
+      setRegenCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const regenerate = async () => {
+    if (!diagnosis?.id || regenInFlight || regenCooldown > 0) return;
+    setRegenError(null);
+    setRegenInFlight(true);
+    startCooldown(15);
+    try {
+      const result = await regenerateDiagnosis(diagnosis.id);
+      setDiagnosis({ ...result, loading: false, error: null });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to regenerate AI diagnosis.";
+      setRegenError(msg);
+    } finally {
+      setRegenInFlight(false);
+    }
+  };
+
+  return {
+    currentStep,
+    formData,
+    diagnosis,
+    totalSteps: TOTAL_STEPS,
+    updateFormData,
+    next,
+    back,
+    reset,
+    submitDiagnosis,
+    regenerate,
+    regenCooldown,
+    regenInFlight,
+    regenError,
+  };
 }

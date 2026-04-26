@@ -75,15 +75,15 @@ function SliderField({
   highLabel: string;
 }) {
   return (
-    <div className="space-y-3 group">
+    <div className="rounded-xl bg-muted/40 border border-border/60 p-4 space-y-3 group">
       <div className="flex justify-between items-center">
         <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500">{label}</p>
         <motion.span
           key={value}
-          initial={{ scale: 1.3, opacity: 0.6 }}
+          initial={{ scale: 1.2, opacity: 0.5 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 500, damping: 20 }}
-          className="text-2xl font-bold text-indigo-600 tabular-nums w-8 text-right"
+          className="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 text-sm font-bold tabular-nums"
         >
           {value}
         </motion.span>
@@ -128,7 +128,6 @@ export function Step2Complexity({ defaultValues, onNext, onBack }: Props) {
             lowLabel="1 channel"
             highLabel="10+ channels"
           />
-          <div className="h-px bg-border" />
           <SliderField
             label="External Integrations / Partners"
             value={numberOfIntegrations}
@@ -163,7 +162,7 @@ export function Step2Complexity({ defaultValues, onNext, onBack }: Props) {
 
       <div className="flex gap-3">
         <Button variant="outline" size="lg" onClick={onBack} className="flex-1">← Back</Button>
-        <Button size="lg" onClick={() => onNext({ numberOfChannels, numberOfIntegrations, hasOmnichannelPresence, hasExternalPartners })} className="flex-1">Continue →</Button>
+        <Button size="lg" onClick={() => onNext({ numberOfChannels, numberOfIntegrations, hasOmnichannelPresence, hasExternalPartners })} className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white">Continue →</Button>
       </div>
     </div>
   );

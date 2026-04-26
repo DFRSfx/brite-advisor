@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Users, Building2, Rocket, Store, Handshake, Check } from "lucide-react";
 import { motion } from "framer-motion";
-import { Label } from "@/components/ui/label";
 
 const LabeledInput = React.forwardRef<HTMLInputElement, React.ComponentProps<"input"> & { id: string; label: string; error?: string }>(
   ({ id, label, placeholder, error, ...props }, ref) => (
@@ -93,7 +92,7 @@ export function Step1Industry({ defaultValues, onNext }: Props) {
 
         {/* Business model tiles */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Business Model</Label>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Business Model</p>
           <div className="grid grid-cols-3 gap-2">
             {BIZ_MODEL_OPTIONS.map(({ value, label, desc, icon: Icon }) => {
               const selected = businessModel === value;
@@ -129,7 +128,7 @@ export function Step1Industry({ defaultValues, onNext }: Props) {
 
         {/* Company size tiles */}
         <div className="space-y-2">
-          <Label className="text-sm font-medium">Company Size</Label>
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Company Size</p>
           <div className="grid grid-cols-3 gap-2">
             {SIZE_OPTIONS.map(({ value, label, desc, icon: Icon }) => {
               const selected = companySize === value;
@@ -164,7 +163,7 @@ export function Step1Industry({ defaultValues, onNext }: Props) {
         </div>
       </div>
 
-      <Button type="submit" size="lg" className="w-full">
+      <Button type="submit" size="lg" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
         Continue →
       </Button>
     </form>

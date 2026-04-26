@@ -1,7 +1,9 @@
 import axios from "axios";
 import { WizardFormData, BriteDiagnosis, AnalyticsData } from "@/types/brite";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const DEFAULT_API_BASE =
+  typeof window !== "undefined" ? window.location.origin : "http://localhost:3001";
+const API_BASE = import.meta.env.VITE_API_URL ?? DEFAULT_API_BASE;
 
 export async function fetchBriteDiagnosis(
   data: WizardFormData

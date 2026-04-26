@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import cors from "cors";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
@@ -225,7 +226,10 @@ app.get("/api/analytics", async (_req, res) => {
   }
 });
 
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+const projectRoot = path.resolve(moduleDir, "..", "..");
 const distCandidates = [
+  path.resolve(projectRoot, "dist"),
   path.resolve(process.cwd(), "dist"),
   path.resolve(process.cwd(), "..", "dist"),
 ];

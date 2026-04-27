@@ -14,9 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ShimmerButton } from "@/components/magicui/shimmer-button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { getReportUrl } from "@/lib/gemini";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { X } from "lucide-react";
+import { AuthModal } from "./AuthModal";
 
 const STEP_LABELS = ["Profile", "Ecosystem", "Sync", "Review"];
 
@@ -112,142 +110,16 @@ export function WizardShell() {
             <AlertDescription>{regenError}</AlertDescription>
           </Alert>
         )}
-        {showAuthModal && (
-          <div className="fixed inset-0 z-50">
-            <div
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setShowAuthModal(false)}
-            />
-            <div className="absolute inset-0 flex items-center justify-center p-4">
-              <div className="relative w-full max-w-4xl rounded-2xl border bg-card p-6 shadow-xl">
-                <button
-                  type="button"
-                  onClick={() => setShowAuthModal(false)}
-                  className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-
-                <div className="space-y-1">
-                  <h2 className="text-xl font-semibold">Save this report to your account</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Create an account or sign in to keep this diagnosis in your dashboard.
-                  </p>
-                </div>
-
-                <div className="mt-6 rounded-2xl border bg-card p-6 shadow-sm space-y-6">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode("register")}
-                      className={cn(
-                        "rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-colors",
-                        authMode === "register"
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
-                          : "border-border bg-background text-foreground hover:border-indigo-300 hover:bg-muted/50"
-                      )}
-                    >
-                      Create account
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAuthMode("login")}
-                      className={cn(
-                        "rounded-xl border-2 px-4 py-2 text-sm font-semibold transition-colors",
-                        authMode === "login"
-                          ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300"
-                          : "border-border bg-background text-foreground hover:border-indigo-300 hover:bg-muted/50"
-                      )}
-                    >
-                      Sign in
-                    </button>
-                  </div>
-
-                  {authMode === "register" ? (
-                    <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5 group">
-                          <label
-                            htmlFor="register-name"
-                            className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                          >
-                            Full name
-                          </label>
-                          <Input id="register-name" placeholder="Jane Doe" className="h-10" />
-                        </div>
-                        <div className="space-y-1.5 group">
-                          <label
-                            htmlFor="register-company"
-                            className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                          >
-                            Company
-                          </label>
-                          <Input id="register-company" placeholder="Acme Corp" className="h-10" />
-                        </div>
-                      </div>
-                      <div className="space-y-1.5 group">
-                        <label
-                          htmlFor="register-email"
-                          className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                        >
-                          Email
-                        </label>
-                        <Input id="register-email" type="email" placeholder="you@company.com" className="h-10" />
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5 group">
-                          <label
-                            htmlFor="register-password"
-                            className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                          >
-                            Password
-                          </label>
-                          <Input id="register-password" type="password" placeholder="••••••••" className="h-10" />
-                        </div>
-                        <div className="space-y-1.5 group">
-                          <label
-                            htmlFor="register-confirm"
-                            className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                          >
-                            Confirm password
-                          </label>
-                          <Input id="register-confirm" type="password" placeholder="••••••••" className="h-10" />
-                        </div>
-                      </div>
-                      <Button type="submit" size="lg" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                        Create Account & Save Report
-                      </Button>
-                    </form>
-                  ) : (
-                    <form className="space-y-4" onSubmit={(event) => event.preventDefault()}>
-                      <div className="space-y-1.5 group">
-                        <label
-                          htmlFor="login-email"
-                          className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                        >
-                          Email
-                        </label>
-                        <Input id="login-email" type="email" placeholder="you@company.com" className="h-10" />
-                      </div>
-                      <div className="space-y-1.5 group">
-                        <label
-                          htmlFor="login-password"
-                          className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground transition-colors duration-150 group-focus-within:text-indigo-500"
-                        >
-                          Password
-                        </label>
-                        <Input id="login-password" type="password" placeholder="••••••••" className="h-10" />
-                      </div>
-                      <Button type="submit" size="lg" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
-                        Sign In & Save Report
-                      </Button>
-                    </form>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        <AuthModal
+          open={showAuthModal}
+          mode={authMode}
+          onModeChange={setAuthMode}
+          onClose={() => setShowAuthModal(false)}
+          title="Save this report to your account"
+          description="Create an account or sign in to keep this diagnosis in your dashboard."
+          registerCta="Create Account & Save Report"
+          loginCta="Sign In & Save Report"
+        />
       </div>
     );
   }

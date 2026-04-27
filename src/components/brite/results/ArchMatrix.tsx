@@ -13,7 +13,6 @@ import {
 import type { ScatterShapeProps } from "recharts";
 import { Quadrant } from "@/types/brite";
 import { QUADRANT_META } from "@/lib/briteClassifier";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Props {
   activeQuadrant: Quadrant;
@@ -36,17 +35,15 @@ interface TooltipProps {
 const CustomTooltip = ({ active, payload }: TooltipProps) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
-  if (d.isActive) {
-    return (
-      <div className="bg-white border border-border rounded-lg px-3 py-2 text-sm shadow-lg">
-        <p className="font-bold">{d.quadrant} — {QUADRANT_META[d.quadrant!].label}</p>
-        <p className="text-muted-foreground">Ecosystem: {d.x.toFixed(1)} · Sync: {d.y.toFixed(1)}</p>
-      </div>
-    );
-  }
+  const meta = QUADRANT_META[d.quadrant!];
   return (
-    <div className="bg-white border border-border rounded-lg px-3 py-2 text-sm shadow-lg">
-      <p className="font-semibold">{d.quadrant} — {QUADRANT_META[d.quadrant!].label}</p>
+    <div className="bg-white border border-border rounded-xl px-3 py-2.5 text-sm shadow-lg">
+      <p className="font-bold text-foreground">{d.quadrant} — {meta.label}</p>
+      {d.isActive && (
+        <p className="text-muted-foreground text-xs mt-0.5">
+          Ecosystem: {d.x.toFixed(1)} · Sync: {d.y.toFixed(1)}
+        </p>
+      )}
     </div>
   );
 };
@@ -64,7 +61,7 @@ const ActiveStar = ({ cx, cy, fill, stroke, strokeWidth }: ActiveStarProps) => {
       cx={cx}
       cy={cy}
       type="star"
-      size={22}
+      size={28}
       sizeType="diameter"
       fill={fill}
       stroke={stroke}
@@ -78,16 +75,18 @@ export function ArchMatrix({ activeQuadrant, ecosystemScore, syncScore }: Props)
   const activePoint = [{ x: ecosystemScore, y: syncScore, quadrant: activeQuadrant, isActive: true }];
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base">BRITE Matrix</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex justify-between text-xs text-muted-foreground mb-1 px-8">
-          <span>← Linear (Eixo X)</span>
-          <span>Distributed →</span>
+    <div className="rounded-2xl border bg-card shadow-sm overflow-hidden">
+      <div className="px-6 pt-5 pb-1">
+        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-0.5">Architecture Position</p>
+        <p className="text-lg font-bold text-foreground">BRITE Matrix</p>
+      </div>
+
+      <div className="px-6 pb-2">
+        <div className="flex justify-between text-xs text-muted-foreground px-8">
+          <span className="text-indigo-500 font-medium">← Linear (Eixo X)</span>
+          <span className="text-indigo-500 font-medium">Distributed →</span>
         </div>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={280}>
           <ScatterChart margin={{ top: 10, right: 20, bottom: 20, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
             <XAxis
@@ -95,64 +94,58 @@ export function ArchMatrix({ activeQuadrant, ecosystemScore, syncScore }: Props)
               dataKey="x"
               domain={[0, 10]}
               ticks={[0, 2.5, 5, 7.5, 10]}
-              tick={{ fontSize: 11 }}
-              label={{ value: "Ecosystem Complexity", position: "insideBottom", offset: -10, fontSize: 11 }}
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              label={{ value: "Ecosystem Complexity", position: "insideBottom", offset: -10, fontSize: 10, fill: "#94a3b8" }}
             />
             <YAxis
               type="number"
               dataKey="y"
               domain={[0, 10]}
               ticks={[0, 2.5, 5, 7.5, 10]}
-              tick={{ fontSize: 11 }}
-              label={{ value: "Sync Demand", angle: -90, position: "insideLeft", offset: 10, fontSize: 11 }}
+              tick={{ fontSize: 10, fill: "#94a3b8" }}
+              label={{ value: "Sync Demand", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "#94a3b8" }}
             />
             <Tooltip content={<CustomTooltip />} />
-            {/* Dividing lines */}
-            <ReferenceLine x={5} stroke="#94a3b8" strokeDasharray="6 3" />
-            <ReferenceLine y={5} stroke="#94a3b8" strokeDasharray="6 3" />
-            {/* Quadrant label dots */}
-            <Scatter data={centerData} opacity={0.25}>
+            <ReferenceLine x={5} stroke="#c7d2fe" strokeDasharray="6 3" strokeWidth={1.5} />
+            <ReferenceLine y={5} stroke="#c7d2fe" strokeDasharray="6 3" strokeWidth={1.5} />
+            <Scatter data={centerData} opacity={0.3}>
               {centerData.map((entry) => (
-                <Cell
-                  key={entry.quadrant}
-                  fill={QUADRANT_META[entry.quadrant].chartColor}
-                />
+                <Cell key={entry.quadrant} fill={QUADRANT_META[entry.quadrant].chartColor} />
               ))}
             </Scatter>
-            {/* Active company point */}
             <Scatter data={activePoint} shape={ActiveStar}>
               {activePoint.map((entry) => (
-                <Cell
-                  key="active"
-                  fill={QUADRANT_META[entry.quadrant].chartColor}
-                  stroke="#fff"
-                  strokeWidth={2}
-                />
+                <Cell key="active" fill={QUADRANT_META[entry.quadrant].chartColor} stroke="#fff" strokeWidth={2} />
               ))}
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
+      </div>
 
-        {/* Quadrant legend */}
-        <div className="grid grid-cols-2 gap-2 mt-2">
-          {(["Q1", "Q2", "Q3", "Q4"] as Quadrant[]).map((q) => (
+      {/* Legend */}
+      <div className="grid grid-cols-2 gap-2 px-6 pb-5">
+        {(["Q1", "Q2", "Q3", "Q4"] as Quadrant[]).map((q) => {
+          const isActive = q === activeQuadrant;
+          const meta = QUADRANT_META[q];
+          return (
             <div
               key={q}
-              className={`flex items-center gap-2 rounded-md px-2 py-1 text-xs ${
-                q === activeQuadrant ? "bg-muted font-semibold" : "text-muted-foreground"
+              className={`flex items-center gap-2.5 rounded-xl px-3 py-2 text-xs transition-colors ${
+                isActive
+                  ? "font-semibold text-foreground border-2"
+                  : "text-muted-foreground border border-border/50 bg-muted/30"
               }`}
+              style={isActive ? { borderColor: meta.chartColor, backgroundColor: `${meta.chartColor}12` } : {}}
             >
               <span
-                className="inline-block w-2.5 h-2.5 rounded-full flex-shrink-0"
-                style={{ backgroundColor: QUADRANT_META[q].chartColor }}
+                className={`inline-block flex-shrink-0 rounded-full ${isActive ? "w-3 h-3" : "w-2.5 h-2.5"}`}
+                style={{ backgroundColor: meta.chartColor }}
               />
-              <span>
-                {q} — {QUADRANT_META[q].label}
-              </span>
+              <span>{q} — {meta.label}</span>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

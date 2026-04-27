@@ -19,11 +19,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { AuthModal } from "@/components/brite/AuthModal";
+import { getStoredUser, clearSession, AuthUser } from "@/lib/auth";
 
 export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<"register" | "login">("register");
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
 
   useEffect(() => {
     fetchAnalytics()
@@ -49,13 +54,16 @@ export function AnalyticsPage() {
     );
   }
 
+  const quadrantCounts = data.quadrantCounts ?? { Q1: 0, Q2: 0, Q3: 0, Q4: 0 };
+  const allAssessments = data.allAssessments ?? [];
+
   const barData = (["Q1", "Q2", "Q3", "Q4"] as Quadrant[]).map((q) => ({
     quadrant: `${q} ${QUADRANT_META[q].label}`,
-    count: data.quadrantCounts[q],
+    count: quadrantCounts[q],
     fill: QUADRANT_META[q].chartColor,
   }));
 
-  const total = Object.values(data.quadrantCounts).reduce((a, b) => a + b, 0);
+  const total = Object.values(quadrantCounts).reduce((a, b) => a + b, 0);
 
   return (
     <div className="space-y-6">
@@ -65,15 +73,46 @@ export function AnalyticsPage() {
           {total} assessment{total !== 1 ? "s" : ""} recorded
         </p>
       </div>
+ 
+      <Card>
+        <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-5">
+          <div>
+            <p className="text-base font-semibold">Save your analytics</p>
+            <p className="text-sm text-muted-foreground">
+              Create an account to keep your dashboard history, access it from any device, and share with your team.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white"
+              onClick={() => {
+                setAuthMode("register");
+                setShowAuthModal(true);
+              }}
+            >
+              Create account
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAuthMode("login");
+                setShowAuthModal(true);
+              }}
+            >
+              Sign in
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {(["Q1", "Q2", "Q3", "Q4"] as Quadrant[]).map((q) => {
-          const pct = total > 0 ? ((data.quadrantCounts[q] / total) * 100).toFixed(0) : "0";
+          const pct = total > 0 ? ((quadrantCounts[q] / total) * 100).toFixed(0) : "0";
           return (
             <Card key={q}>
               <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-2xl font-bold">{data.quadrantCounts[q]}</p>
+                <p className="text-2xl font-bold">{quadrantCounts[q]}</p>
                 <p className="text-xs font-semibold" style={{ color: QUADRANT_META[q].chartColor }}>
                   {q} — {QUADRANT_META[q].label}
                 </p>
@@ -113,7 +152,7 @@ export function AnalyticsPage() {
       </Card>
 
       {/* Scatter plot */}
-      {data.allAssessments.length > 0 && (
+      {allAssessments.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">All Assessments — Score Map</CardTitle>
@@ -156,8 +195,8 @@ export function AnalyticsPage() {
                 />
                 <ReferenceLine x={5} stroke="#94a3b8" strokeDasharray="6 3" />
                 <ReferenceLine y={5} stroke="#94a3b8" strokeDasharray="6 3" />
-                <Scatter data={data.allAssessments}>
-                  {data.allAssessments.map((entry, idx) => (
+                <Scatter data={allAssessments}>
+                  {allAssessments.map((entry, idx) => (
                     <Cell
                       key={idx}
                       fill={QUADRANT_META[entry.quadrant].chartColor}
@@ -172,7 +211,7 @@ export function AnalyticsPage() {
       )}
 
       {/* Recent assessments table */}
-      {data.allAssessments.length > 0 && (
+      {allAssessments.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Recent Assessments</CardTitle>
@@ -191,7 +230,7 @@ export function AnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.allAssessments.slice(0, 20).map((a) => (
+                  {allAssessments.slice(0, 20).map((a) => (
                     <tr key={a.id} className="border-b last:border-0 hover:bg-muted/50">
                       <td className="py-2 font-medium">{a.company_name}</td>
                       <td className="py-2">
@@ -222,6 +261,13 @@ export function AnalyticsPage() {
           </CardContent>
         </Card>
       )}
+
+      <AuthModal
+        open={showAuthModal}
+        mode={authMode}
+        onModeChange={setAuthMode}
+        onClose={() => setShowAuthModal(false)}
+      />
     </div>
   );
 }

@@ -7,9 +7,11 @@ import cors from "cors";
 import rateLimit from "express-rate-limit";
 import axios from "axios";
 import { z } from "zod";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { calculateEcosystemScore, calculateSyncScore, classifyQuadrant } from "./classifier.js";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.js";
-import { saveAssessment, getAssessmentById, getAnalytics, updateAssessmentAnalysis } from "./db.js";
+import { saveAssessment, getAssessmentById, getAnalytics, updateAssessmentAnalysis, createUser, getUserByEmail } from "./db.js";
 import { streamAssessmentPdf } from "./pdf.js";
 import type { Quadrant, WizardFormData } from "./types.js";
 
@@ -19,6 +21,7 @@ const PORT = process.env.PORT ?? 3001;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL ?? "gemini-2.0-flash";
 const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN ?? "http://localhost:5173";
+const JWT_SECRET = process.env.JWT_SECRET ?? "change-me-in-production";
 
 if (!GEMINI_API_KEY) {
   console.error("GEMINI_API_KEY is not set");
@@ -28,6 +31,10 @@ if (!GEMINI_API_KEY) {
 if (!process.env.DATABASE_URL) {
   console.error("DATABASE_URL is not set");
   process.exit(1);
+}
+
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET not set — using insecure default. Set it in .env for production.")
 }
 
 app.use(express.json());
@@ -102,6 +109,81 @@ async function fetchAiAnalysis(formData: WizardFormData, quadrant: Quadrant): Pr
   }
   return aiText;
 }
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 min
+  max: 20,
+  message: { error: "Too many auth attempts. Try again later." },
+});
+
+const registerSchema = z.object({
+  name: z.string().min(1).max(120),
+  company: z.string().max(120).optional(),
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+});
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(1),
+});
+
+function signToken(userId: string) {
+  return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+}
+
+app.post("/api/auth/register", authLimiter, async (req, res) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input", details: parsed.error.flatten() });
+    return;
+  }
+
+  const { name, company, email, password } = parsed.data;
+
+  const existing = await getUserByEmail(email);
+  if (existing) {
+    res.status(409).json({ error: "Email already in use." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await createUser({ name, company, email, passwordHash });
+  const token = signToken(user.id);
+
+  res.status(201).json({
+    token,
+    user: { id: user.id, name: user.name, company: user.company, email: user.email },
+  });
+});
+
+app.post("/api/auth/login", authLimiter, async (req, res) => {
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid input" });
+    return;
+  }
+
+  const { email, password } = parsed.data;
+
+  const user = await getUserByEmail(email);
+  if (!user) {
+    res.status(401).json({ error: "Invalid email or password." });
+    return;
+  }
+
+  const valid = await bcrypt.compare(password, user.password_hash);
+  if (!valid) {
+    res.status(401).json({ error: "Invalid email or password." });
+    return;
+  }
+
+  const token = signToken(user.id);
+  res.json({
+    token,
+    user: { id: user.id, name: user.name, company: user.company, email: user.email },
+  });
+});
 
 // Health check
 app.get("/health", (_req, res) => {

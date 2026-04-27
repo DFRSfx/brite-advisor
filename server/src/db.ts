@@ -1,10 +1,52 @@
 import postgres from "postgres";
 import { WizardFormData, Quadrant } from "./types.js";
 
+export interface User {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string;
+  password_hash: string;
+  created_at: string;
+}
+
 const sql = postgres(process.env.DATABASE_URL!, {
   ssl: { rejectUnauthorized: false },
   max: 10,
 });
+
+// Ensure users table exists
+await sql`
+  CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name TEXT NOT NULL,
+    company TEXT,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`;
+
+export async function createUser(params: {
+  name: string;
+  company?: string;
+  email: string;
+  passwordHash: string;
+}): Promise<User> {
+  const [row] = await sql<User[]>`
+    INSERT INTO users (name, company, email, password_hash)
+    VALUES (${params.name}, ${params.company ?? null}, ${params.email}, ${params.passwordHash})
+    RETURNING *
+  `;
+  return row;
+}
+
+export async function getUserByEmail(email: string): Promise<User | null> {
+  const rows = await sql<User[]>`
+    SELECT * FROM users WHERE email = ${email} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
 
 export interface Assessment {
   id: string;

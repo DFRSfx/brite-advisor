@@ -64,7 +64,7 @@ function MainLayout() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto py-8 px-6 lg:px-8">
         <Routes>
           <Route path="/" element={<DiagnosticPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />

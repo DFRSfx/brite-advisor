@@ -1,5 +1,7 @@
 const DEFAULT_API_BASE =
-  typeof window !== "undefined" ? window.location.origin : "http://localhost:3001";
+  typeof window !== "undefined"
+    ? (import.meta.env.DEV ? "http://localhost:3001" : window.location.origin)
+    : "http://localhost:3001";
 const BASE = import.meta.env.VITE_API_URL ?? DEFAULT_API_BASE;
 
 export interface AuthUser {

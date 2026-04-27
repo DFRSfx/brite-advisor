@@ -12,7 +12,15 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import { calculateEcosystemScore, calculateSyncScore, classifyQuadrant } from "./classifier.js";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.js";
-import { saveAssessment, getAssessmentById, getAnalytics, updateAssessmentAnalysis, createUser, getUserByEmail } from "./db.js";
+import {
+  saveAssessment,
+  getAssessmentById,
+  getAnalytics,
+  updateAssessmentAnalysis,
+  createUser,
+  getUserByEmail,
+  attachAssessmentToUser,
+} from "./db.js";
 import { streamAssessmentPdf } from "./pdf.js";
 import type { Quadrant, WizardFormData } from "./types.js";
 
@@ -139,6 +147,16 @@ const COOKIE_OPTS = {
   maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
   path: "/",
 };
+
+function getAuthUserId(req: express.Request): string | null {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return null;
+  try {
+    return (jwt.verify(token, JWT_SECRET) as { sub: string }).sub;
+  } catch {
+    return null;
+  }
+}
 
 function signToken(userId: string) {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
@@ -313,6 +331,25 @@ app.post("/api/diagnose/:id/regenerate", diagnoseLimiter, async (req, res) => {
       aiAnalysis,
     });
   }
+});
+
+// Save an existing assessment to the authenticated account
+app.post("/api/assessments/:id/save", async (req, res) => {
+  const userId = getAuthUserId(req);
+  if (!userId) {
+    res.status(401).json({ error: "Not authenticated." });
+    return;
+  }
+
+  const rawId = req.params.id;
+  const id = Array.isArray(rawId) ? rawId[0] : rawId;
+  const updated = await attachAssessmentToUser(id, userId);
+  if (!updated) {
+    res.status(404).json({ error: "Assessment not found." });
+    return;
+  }
+
+  res.json({ ok: true });
 });
 
 // PDF report

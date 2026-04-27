@@ -2,7 +2,9 @@ import axios from "axios";
 import { WizardFormData, BriteDiagnosis, AnalyticsData } from "@/types/brite";
 
 const DEFAULT_API_BASE =
-  typeof window !== "undefined" ? window.location.origin : "http://localhost:3001";
+  typeof window !== "undefined"
+    ? (import.meta.env.DEV ? "http://localhost:3001" : window.location.origin)
+    : "http://localhost:3001";
 const API_BASE = import.meta.env.VITE_API_URL ?? DEFAULT_API_BASE;
 
 export async function fetchBriteDiagnosis(
@@ -38,6 +40,22 @@ export async function regenerateDiagnosis(
 export async function fetchAnalytics(): Promise<AnalyticsData> {
   const response = await axios.get<AnalyticsData>(`${API_BASE}/api/analytics`);
   return response.data;
+}
+
+export async function saveAssessmentToAccount(id: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/assessments/${id}/save`, {
+    method: "POST",
+    credentials: "include",
+  });
+  let data: { error?: string } | null = null;
+  try {
+    data = (await res.json()) as { error?: string };
+  } catch {
+    data = null;
+  }
+  if (!res.ok) {
+    throw new Error(data?.error ?? "Failed to save assessment.");
+  }
 }
 
 export function getReportUrl(id: string): string {

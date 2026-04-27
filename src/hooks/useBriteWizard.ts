@@ -69,7 +69,11 @@ export function useBriteWizard() {
   };
 
   const regenerate = async () => {
-    if (!diagnosis?.id || regenInFlight || regenCooldown > 0) return;
+    if (!diagnosis?.id) {
+      setRegenError("This analysis can't be regenerated because it wasn't saved. Run a new diagnosis.");
+      return;
+    }
+    if (regenInFlight || regenCooldown > 0) return;
     setRegenError(null);
     setRegenInFlight(true);
     startCooldown(15);

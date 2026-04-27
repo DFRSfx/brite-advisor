@@ -17,6 +17,9 @@ const sql = postgres(process.env.DATABASE_URL!, {
 
 // Ensure users table exists
 await sql`
+  CREATE EXTENSION IF NOT EXISTS "pgcrypto"
+`;
+await sql`
   CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name TEXT NOT NULL,
@@ -25,6 +28,31 @@ await sql`
     password_hash TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )
+`;
+await sql`
+  CREATE TABLE IF NOT EXISTS assessments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    company_name TEXT NOT NULL,
+    industry TEXT NOT NULL,
+    business_model TEXT NOT NULL,
+    company_size TEXT NOT NULL,
+    quadrant TEXT NOT NULL,
+    ecosystem_score DOUBLE PRECISION NOT NULL,
+    sync_score DOUBLE PRECISION NOT NULL,
+    form_data JSONB NOT NULL,
+    ai_analysis TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )
+`;
+await sql`
+  ALTER TABLE assessments
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL
+`;
+await sql`
+  ALTER TABLE assessments
+  ALTER COLUMN ecosystem_score TYPE DOUBLE PRECISION USING ecosystem_score::double precision,
+  ALTER COLUMN sync_score TYPE DOUBLE PRECISION USING sync_score::double precision
 `;
 
 export async function createUser(params: {
@@ -44,6 +72,13 @@ export async function createUser(params: {
 export async function getUserByEmail(email: string): Promise<User | null> {
   const rows = await sql<User[]>`
     SELECT * FROM users WHERE email = ${email} LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function getUserById(id: string): Promise<User | null> {
+  const rows = await sql<User[]>`
+    SELECT * FROM users WHERE id = ${id} LIMIT 1
   `;
   return rows[0] ?? null;
 }
@@ -105,6 +140,16 @@ export async function updateAssessmentAnalysis(id: string, aiAnalysis: string): 
     RETURNING *
   `;
   return row;
+}
+
+export async function attachAssessmentToUser(id: string, userId: string): Promise<Assessment | null> {
+  const [row] = await sql<Assessment[]>`
+    UPDATE assessments
+    SET user_id = ${userId}
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return row ?? null;
 }
 
 export async function getAnalytics(): Promise<{

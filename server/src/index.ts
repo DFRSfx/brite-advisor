@@ -9,6 +9,7 @@ import axios from "axios";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 import { calculateEcosystemScore, calculateSyncScore, classifyQuadrant } from "./classifier.js";
 import { SYSTEM_PROMPT, buildUserPrompt } from "./prompts.js";
 import { saveAssessment, getAssessmentById, getAnalytics, updateAssessmentAnalysis, createUser, getUserByEmail } from "./db.js";
@@ -38,7 +39,8 @@ if (!process.env.JWT_SECRET) {
 }
 
 app.use(express.json());
-app.use(cors({ origin: ALLOWED_ORIGIN, methods: ["GET", "POST"] }));
+app.use(cookieParser());
+app.use(cors({ origin: ALLOWED_ORIGIN, methods: ["GET", "POST"], credentials: true }));
 
 const diagnoseLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -128,8 +130,22 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+const IS_PROD = process.env.NODE_ENV === "production";
+const COOKIE_NAME = "brite_auth";
+const COOKIE_OPTS = {
+  httpOnly: true,
+  secure: IS_PROD,
+  sameSite: (IS_PROD ? "strict" : "lax") as "strict" | "lax",
+  maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in ms
+  path: "/",
+};
+
 function signToken(userId: string) {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
+}
+
+function userPayload(user: { id: string; name: string; company: string | null; email: string }) {
+  return { id: user.id, name: user.name, company: user.company, email: user.email };
 }
 
 app.post("/api/auth/register", authLimiter, async (req, res) => {
@@ -149,12 +165,9 @@ app.post("/api/auth/register", authLimiter, async (req, res) => {
 
   const passwordHash = await bcrypt.hash(password, 12);
   const user = await createUser({ name, company, email, passwordHash });
-  const token = signToken(user.id);
 
-  res.status(201).json({
-    token,
-    user: { id: user.id, name: user.name, company: user.company, email: user.email },
-  });
+  res.cookie(COOKIE_NAME, signToken(user.id), COOKIE_OPTS);
+  res.status(201).json({ user: userPayload(user) });
 });
 
 app.post("/api/auth/login", authLimiter, async (req, res) => {
@@ -165,24 +178,40 @@ app.post("/api/auth/login", authLimiter, async (req, res) => {
   }
 
   const { email, password } = parsed.data;
-
   const user = await getUserByEmail(email);
-  if (!user) {
+
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     res.status(401).json({ error: "Invalid email or password." });
     return;
   }
 
-  const valid = await bcrypt.compare(password, user.password_hash);
-  if (!valid) {
-    res.status(401).json({ error: "Invalid email or password." });
+  res.cookie(COOKIE_NAME, signToken(user.id), COOKIE_OPTS);
+  res.json({ user: userPayload(user) });
+});
+
+app.get("/api/auth/me", async (req, res) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) { res.status(401).json({ error: "Not authenticated." }); return; }
+
+  let payload: { sub: string };
+  try {
+    payload = jwt.verify(token, JWT_SECRET) as { sub: string };
+  } catch {
+    res.clearCookie(COOKIE_NAME, { path: "/" });
+    res.status(401).json({ error: "Session expired." });
     return;
   }
 
-  const token = signToken(user.id);
-  res.json({
-    token,
-    user: { id: user.id, name: user.name, company: user.company, email: user.email },
-  });
+  const { getUserById } = await import("./db.js");
+  const user = await getUserById(payload.sub);
+  if (!user) { res.status(401).json({ error: "User not found." }); return; }
+
+  res.json({ user: userPayload(user) });
+});
+
+app.post("/api/auth/logout", (req, res) => {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.json({ ok: true });
 });
 
 // Health check

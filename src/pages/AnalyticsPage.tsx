@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { AuthModal } from "@/components/brite/AuthModal";
-import { getStoredUser, clearSession, AuthUser } from "@/lib/auth";
+import { getSession, logout, AuthUser } from "@/lib/auth";
 
 export function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
@@ -28,13 +28,14 @@ export function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<"register" | "login">("register");
-  const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => getStoredUser());
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
 
   useEffect(() => {
     fetchAnalytics()
       .then(setData)
       .catch(() => setError("Failed to load analytics."))
       .finally(() => setLoading(false));
+    getSession().then(setCurrentUser);
   }, []);
 
   if (loading) {
@@ -76,32 +77,46 @@ export function AnalyticsPage() {
  
       <Card>
         <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pt-5">
-          <div>
-            <p className="text-base font-semibold">Save your analytics</p>
-            <p className="text-sm text-muted-foreground">
-              Create an account to keep your dashboard history, access it from any device, and share with your team.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 text-white"
-              onClick={() => {
-                setAuthMode("register");
-                setShowAuthModal(true);
-              }}
-            >
-              Create account
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setAuthMode("login");
-                setShowAuthModal(true);
-              }}
-            >
-              Sign in
-            </Button>
-          </div>
+          {currentUser ? (
+            <>
+              <div>
+                <p className="text-base font-semibold">Signed in as {currentUser.name}</p>
+                <p className="text-sm text-muted-foreground">{currentUser.email}</p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  await logout();
+                  setCurrentUser(null);
+                }}
+              >
+                Sign out
+              </Button>
+            </>
+          ) : (
+            <>
+              <div>
+                <p className="text-base font-semibold">Save your analytics</p>
+                <p className="text-sm text-muted-foreground">
+                  Create an account to keep your dashboard history, access it from any device, and share with your team.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => { setAuthMode("register"); setShowAuthModal(true); }}
+                >
+                  Create account
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => { setAuthMode("login"); setShowAuthModal(true); }}
+                >
+                  Sign in
+                </Button>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -267,6 +282,7 @@ export function AnalyticsPage() {
         mode={authMode}
         onModeChange={setAuthMode}
         onClose={() => setShowAuthModal(false)}
+        onSuccess={(user) => { setCurrentUser(user); setShowAuthModal(false); }}
       />
     </div>
   );

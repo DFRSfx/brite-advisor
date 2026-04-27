@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Loader2, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence, LayoutGroup } from "framer-motion";
-import { register, login, saveSession, AuthUser } from "@/lib/auth";
+import { register, login, AuthUser } from "@/lib/auth";
 
 type AuthMode = "register" | "login";
 
@@ -12,11 +12,25 @@ interface Props {
   onModeChange: (mode: AuthMode) => void;
   onClose: () => void;
   onSuccess?: (user: AuthUser) => void;
+  title?: string;
+  description?: string;
+  registerCta?: string;
+  loginCta?: string;
 }
 
 const SPRING = { type: "spring" as const, stiffness: 320, damping: 34, mass: 0.9 };
 
-export function AuthModal({ open, mode, onModeChange, onClose, onSuccess }: Props) {
+export function AuthModal({
+  open,
+  mode,
+  onModeChange,
+  onClose,
+  onSuccess,
+  title,
+  description,
+  registerCta,
+  loginCta,
+}: Props) {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
@@ -28,6 +42,13 @@ export function AuthModal({ open, mode, onModeChange, onClose, onSuccess }: Prop
   if (!open || typeof document === "undefined") return null;
 
   const isLogin = mode === "login";
+  const heading = title ?? (isLogin ? "Welcome back" : "Create an account");
+  const subheading =
+    description ??
+    (isLogin
+      ? "Enter your credentials below to sign in"
+      : "Enter your details below to create your account");
+  const submitLabel = isLogin ? (loginCta ?? "Sign in") : (registerCta ?? "Create account");
 
   function resetForm() {
     setName(""); setCompany(""); setEmail("");
@@ -54,7 +75,6 @@ export function AuthModal({ open, mode, onModeChange, onClose, onSuccess }: Prop
       const result = isLogin
         ? await login({ email, password })
         : await register({ name, company: company || undefined, email, password });
-      saveSession(result);
       resetForm();
       onSuccess?.(result.user);
       onClose();
@@ -113,14 +133,8 @@ export function AuthModal({ open, mode, onModeChange, onClose, onSuccess }: Prop
                   className="mx-auto flex w-full flex-col justify-center gap-6 sm:w-[350px]"
                 >
                   <div className="flex flex-col gap-2 text-center">
-                    <h1 className="text-2xl font-semibold tracking-tight">
-                      {isLogin ? "Welcome back" : "Create an account"}
-                    </h1>
-                    <p className="text-sm text-[#a1a1aa]">
-                      {isLogin
-                        ? "Enter your credentials below to sign in"
-                        : "Enter your details below to create your account"}
-                    </p>
+                    <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
+                    <p className="text-sm text-[#a1a1aa]">{subheading}</p>
                   </div>
 
                   <form className="grid gap-4" onSubmit={handleSubmit}>
@@ -187,7 +201,7 @@ export function AuthModal({ open, mode, onModeChange, onClose, onSuccess }: Prop
                       className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-[#fafafa] px-4 py-2 text-sm font-medium text-[#09090b] shadow-xs transition-colors hover:bg-[#fafafa]/90 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-[#fafafa]/50 disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                      {isLogin ? "Sign in" : "Create account"}
+                      {submitLabel}
                     </button>
                   </form>
 
